@@ -19,12 +19,17 @@ SIMPLICITY_KEYWORDS = frozenset([
     "tweak", "adjust", "correct", "small",
 ])
 
-COMPLEXITY_KEYWORDS = frozenset([
-    "redesign", "refactor", "migrate", "integrate", "architect",
-    "overhaul", "rewrite", "implement", "build", "create system",
-    "design", "multi", "cross", "infrastructure", "framework",
-    "pipeline", "workflow", "authentication", "authorization",
+# Strong complexity signals (full weight)
+COMPLEXITY_KEYWORDS_STRONG = frozenset([
+    "redesign", "migrate", "architect", "overhaul", "rewrite",
+    "infrastructure", "framework", "pipeline", "cross",
     "database schema", "api design",
+])
+
+# Weak complexity signals (half weight — common in tasks of all sizes)
+COMPLEXITY_KEYWORDS_WEAK = frozenset([
+    "implement", "build", "create", "integrate", "refactor",
+    "design", "multi", "workflow", "authentication", "authorization",
 ])
 
 IRREVERSIBILITY_KEYWORDS = frozenset([
@@ -67,22 +72,22 @@ def _score_keywords(description: str) -> float:
     words = set(re.findall(r"\b[a-z]+\b", desc_lower))
 
     # Use word-boundary regex for multi-word keywords, set membership for single words
-    def keyword_matches(keywords: frozenset) -> int:
-        count = 0
+    def keyword_matches(keywords: frozenset) -> float:
+        count = 0.0
         for kw in keywords:
             if " " in kw:
-                # Multi-word: use substring match (word boundaries handled by the phrase)
                 if kw in desc_lower:
-                    count += 1
+                    count += 1.0
             else:
-                # Single word: check word set to avoid substring false positives
                 if kw in words:
-                    count += 1
+                    count += 1.0
         return count
 
     simplicity = keyword_matches(SIMPLICITY_KEYWORDS)
-    complexity = keyword_matches(COMPLEXITY_KEYWORDS)
-    # Note: uncertainty is scored separately in _has_uncertainty(), not double-counted here
+    complexity_strong = keyword_matches(COMPLEXITY_KEYWORDS_STRONG)
+    complexity_weak = keyword_matches(COMPLEXITY_KEYWORDS_WEAK) * 0.5  # Half weight for common verbs
+    complexity = complexity_strong + complexity_weak
+
     total = simplicity + complexity
     if total == 0:
         return 0.0

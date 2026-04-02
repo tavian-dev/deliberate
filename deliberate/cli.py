@@ -7,7 +7,10 @@ from pathlib import Path
 
 from deliberate import WeightClass
 from deliberate.classify import classify
-from deliberate.process import create_brief, complete_item, get_brief_status
+from deliberate.process import (
+    create_brief, complete_item, get_brief_status,
+    create_campaign, campaign_step, campaign_status,
+)
 
 
 def cmd_brief(args):
@@ -133,6 +136,20 @@ def main():
     status_parser.add_argument("--dir", "-d", default=".", help="Brief directory")
     status_parser.add_argument("--json", action="store_true", help="JSON output")
 
+    # campaign
+    camp_parser = subparsers.add_parser("campaign", help="Create a Class C campaign")
+    camp_parser.add_argument("name", help="Campaign name (slug)")
+    camp_parser.add_argument("description", help="What this campaign is about")
+    camp_parser.add_argument("--dir", "-d", default=".deliberate/active", help="Campaigns directory")
+    camp_parser.add_argument("--json", action="store_true")
+
+    # step
+    step_parser = subparsers.add_parser("step", help="Execute a campaign step (spec/plan/tasks)")
+    step_parser.add_argument("step_name", choices=["spec", "plan", "tasks"], help="Step to execute")
+    step_parser.add_argument("--campaign", "-c", required=True, help="Campaign directory")
+    step_parser.add_argument("--content", help="Content for the artifact (reads stdin if omitted)")
+    step_parser.add_argument("--json", action="store_true")
+
     args = parser.parse_args()
 
     if args.command == "classify":
@@ -143,6 +160,30 @@ def main():
         cmd_check(args)
     elif args.command == "status":
         cmd_status(args)
+    elif args.command == "campaign":
+        output_dir = Path(args.dir)
+        result = create_campaign(args.name, args.description, output_dir)
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            print(f"🏗️ Campaign created: {output_dir / args.name}")
+            print(f"   Next: deliberate step spec --campaign {output_dir / args.name}")
+    elif args.command == "step":
+        campaign_dir = Path(args.campaign)
+        content = args.content or sys.stdin.read()
+        try:
+            result = campaign_step(campaign_dir, args.step_name, content)
+            if args.json:
+                print(json.dumps(result, indent=2))
+            else:
+                print(f"✅ {args.step_name}.md written to {campaign_dir}")
+                next_steps = {"spec": "plan", "plan": "tasks", "tasks": "implement"}
+                nxt = next_steps.get(args.step_name)
+                if nxt:
+                    print(f"   Next: deliberate step {nxt} --campaign {campaign_dir}")
+        except ValueError as e:
+            print(f"❌ Cannot execute '{args.step_name}': {e}", file=sys.stderr)
+            sys.exit(1)
     else:
         parser.print_help()
         sys.exit(1)

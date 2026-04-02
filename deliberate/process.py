@@ -2,16 +2,99 @@
 
 Class A: No artifacts, just verification after completion.
 Class B: Brief with checklist and done criteria.
-Class C/D: Full pipeline (spec → plan → tasks) — implemented later.
+Class C: Full pipeline (spec → plan → tasks) with enforcement.
+Class D: Research + spike + full pipeline.
 """
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
 from string import Template
 from typing import Optional
 
-from deliberate import Brief, CheckItem
+from deliberate import Brief, CheckItem, WeightClass
+from deliberate.enforce import check_prerequisites
+
+
+# --- Campaign (Class C/D) ---
+
+CAMPAIGN_STEPS = ["spec", "plan", "tasks"]
+
+STATUS_MAP = {
+    "spec": "specifying",
+    "plan": "planning",
+    "tasks": "tasking",
+}
+
+
+def create_campaign(
+    name: str,
+    description: str,
+    campaigns_dir: Path,
+    weight_class: WeightClass = WeightClass.C,
+) -> dict:
+    """Create a new campaign directory with status tracking."""
+    campaign_dir = campaigns_dir / name
+    campaign_dir.mkdir(parents=True, exist_ok=True)
+
+    status = {
+        "name": name,
+        "description": description,
+        "weight_class": weight_class.value,
+        "status": "created",
+        "created": datetime.now().isoformat(),
+        "artifacts": {step: False for step in CAMPAIGN_STEPS},
+    }
+
+    (campaign_dir / "status.json").write_text(json.dumps(status, indent=2))
+    return status
+
+
+def campaign_step(
+    campaign_dir: Path,
+    step: str,
+    content: str,
+) -> dict:
+    """Execute a campaign step: write artifact after checking prerequisites.
+
+    Raises ValueError if prerequisites are not met.
+    """
+    if step not in CAMPAIGN_STEPS:
+        raise ValueError(f"Unknown step: {step}. Valid steps: {CAMPAIGN_STEPS}")
+
+    # Load current status to determine weight class
+    status = campaign_status(campaign_dir)
+    wc = WeightClass(status.get("weight_class", "campaign"))
+
+    # Check prerequisites
+    errors = check_prerequisites(wc, step, campaign_dir)
+    if errors:
+        raise ValueError("\n".join(errors))
+
+    # Write the artifact
+    artifact_path = campaign_dir / f"{step}.md"
+    artifact_path.write_text(content)
+
+    # Update status
+    status_path = campaign_dir / "status.json"
+    if status_path.exists():
+        status = json.loads(status_path.read_text())
+    status["status"] = STATUS_MAP.get(step, step)
+    status["artifacts"][step] = True
+    status[f"{step}_at"] = datetime.now().isoformat()
+    status_path.write_text(json.dumps(status, indent=2))
+
+    return status
+
+
+def campaign_status(campaign_dir: Path) -> dict:
+    """Get the status of a campaign."""
+    status_path = campaign_dir / "status.json"
+    if not status_path.exists():
+        return {"status": "none"}
+
+    return json.loads(status_path.read_text())
 
 
 # --- Brief (Class B) ---

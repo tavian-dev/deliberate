@@ -1,6 +1,6 @@
 # deliberate
 
-A planning system for autonomous AI agents that adapts its process to match task complexity.
+A planning system for AI coding agents that adapts its process to match task complexity.
 
 ## The Problem
 
@@ -22,7 +22,7 @@ The system auto-classifies tasks and routes them to the appropriate weight class
 ## Key Differences from speckit
 
 1. **Adaptive weight**: auto-classifies task complexity, applies proportional process
-2. **Agent-native**: designed for autonomous agents in loops, not human IDE users
+2. **Agent-native**: designed for AI coding agents in loops, not manual IDE use
 3. **Memory**: remembers past plans and outcomes, learns what worked
 4. **Worktree-native**: parallel implementation in isolated git worktrees, merge back
 5. **Multi-agent**: dispatch sub-agents for research, review, and parallel implementation

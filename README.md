@@ -54,7 +54,8 @@ deliberate check-escalation B --attempts 3
 - **Escalation detection** — detects when you're at the wrong level
 - **Outcome memory** — records plan results, searchable via recall
 - **Zero dependencies** — stdlib only (recall integration is optional)
-- **88 tests** covering classification, enforcement, process, escalation, memory
+- **Git worktree parallelism** — dispatch independent phases to isolated worktrees
+- **100 tests** covering classification, enforcement, process, escalation, memory, worktrees
 
 ## How Classification Works
 

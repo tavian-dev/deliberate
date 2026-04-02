@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: deliberate
+Version: 0.1.0
+Summary: Adaptive planning for autonomous AI agents
+Requires-Python: >=3.10
+Provides-Extra: recall
+Requires-Dist: recall-search; extra == "recall"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"

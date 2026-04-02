@@ -1,0 +1,2 @@
+[console_scripts]
+deliberate = deliberate.cli:main

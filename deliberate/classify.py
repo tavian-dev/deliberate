@@ -1,0 +1,202 @@
+"""Task complexity classifier.
+
+Uses weighted heuristic signals to classify tasks into weight classes
+without requiring LLM calls. Classification takes <100ms.
+"""
+
+import re
+from dataclasses import dataclass
+from typing import Optional
+
+from deliberate import Classification, WeightClass
+
+
+# --- Signal Keywords ---
+
+SIMPLICITY_KEYWORDS = frozenset([
+    "fix", "typo", "rename", "update", "bump", "remove", "delete",
+    "add comment", "format", "lint", "clean", "minor", "trivial",
+    "tweak", "adjust", "correct", "small",
+])
+
+COMPLEXITY_KEYWORDS = frozenset([
+    "redesign", "refactor", "migrate", "integrate", "architect",
+    "overhaul", "rewrite", "implement", "build", "create system",
+    "design", "multi", "cross", "infrastructure", "framework",
+    "pipeline", "workflow", "authentication", "authorization",
+    "database schema", "api design",
+])
+
+IRREVERSIBILITY_KEYWORDS = frozenset([
+    "schema", "migration", "api", "contract", "interface", "protocol",
+    "public", "breaking", "deploy", "production", "release",
+])
+
+UNCERTAINTY_KEYWORDS = frozenset([
+    "investigate", "explore", "research", "spike", "prototype",
+    "evaluate", "compare", "decide", "unclear", "unknown",
+    "might", "maybe", "possibly", "not sure",
+])
+
+
+# --- Signal Extractors ---
+
+def _score_word_count(description: str) -> float:
+    """Longer descriptions suggest more complex tasks. Returns 0.0-1.0."""
+    words = len(description.split())
+    if words < 10:
+        return 0.0   # Very short → simple
+    elif words < 30:
+        return 0.25
+    elif words < 60:
+        return 0.5
+    elif words < 120:
+        return 0.75
+    else:
+        return 1.0   # Very long → complex
+
+
+def _score_keywords(description: str) -> float:
+    """Check for complexity/simplicity keywords. Returns -1.0 to 1.0."""
+    desc_lower = description.lower()
+    words = set(re.findall(r"[a-z]+(?:\s+[a-z]+)?", desc_lower))
+
+    simplicity = sum(1 for kw in SIMPLICITY_KEYWORDS if kw in desc_lower)
+    complexity = sum(1 for kw in COMPLEXITY_KEYWORDS if kw in desc_lower)
+    uncertainty = sum(1 for kw in UNCERTAINTY_KEYWORDS if kw in desc_lower)
+
+    # Normalize: positive = complex, negative = simple
+    score = (complexity + uncertainty * 0.5 - simplicity) / max(simplicity + complexity + uncertainty, 1)
+    return max(-1.0, min(1.0, score))
+
+
+def _score_file_count(file_count: Optional[int]) -> float:
+    """More files = more complex. Returns 0.0-1.0."""
+    if file_count is None:
+        return 0.5  # Unknown → neutral
+    if file_count <= 2:
+        return 0.0
+    elif file_count <= 5:
+        return 0.25
+    elif file_count <= 10:
+        return 0.5
+    elif file_count <= 20:
+        return 0.75
+    else:
+        return 1.0
+
+
+def _score_reversibility(description: str) -> float:
+    """Irreversible changes need more planning. Returns 0.0-1.0."""
+    desc_lower = description.lower()
+    hits = sum(1 for kw in IRREVERSIBILITY_KEYWORDS if kw in desc_lower)
+    if hits == 0:
+        return 0.0
+    elif hits <= 2:
+        return 0.5
+    else:
+        return 1.0
+
+
+def _score_familiarity(familiarity: Optional[float]) -> float:
+    """Unfamiliar areas need more planning. Returns 0.0-1.0 (inverted)."""
+    if familiarity is None:
+        return 0.5  # Unknown → neutral
+    return 1.0 - familiarity  # High familiarity → low complexity signal
+
+
+# --- Main Classifier ---
+
+# Signal weights (must sum to 1.0)
+WEIGHTS = {
+    "word_count": 0.15,
+    "keywords": 0.25,
+    "file_count": 0.20,
+    "reversibility": 0.15,
+    "familiarity": 0.15,
+    "uncertainty": 0.10,
+}
+
+
+def _has_uncertainty(description: str) -> float:
+    """Check for uncertainty/exploration language. Returns 0.0-1.0."""
+    desc_lower = description.lower()
+    hits = sum(1 for kw in UNCERTAINTY_KEYWORDS if kw in desc_lower)
+    return min(1.0, hits * 0.4)
+
+
+def classify(
+    description: str,
+    context: Optional[dict] = None,
+) -> Classification:
+    """Classify a task's complexity into a weight class.
+
+    Args:
+        description: Natural language task description
+        context: Optional dict with keys:
+            - file_count: estimated number of files affected
+            - familiarity: 0.0-1.0 how familiar with this area
+            - past_outcomes: list of relevant past outcome dicts
+
+    Returns:
+        Classification with weight_class, confidence, reasoning, signals
+    """
+    ctx = context or {}
+
+    # Extract signals
+    signals = {
+        "word_count": _score_word_count(description),
+        "keywords": (_score_keywords(description) + 1) / 2,  # Normalize to 0-1
+        "file_count": _score_file_count(ctx.get("file_count")),
+        "reversibility": _score_reversibility(description),
+        "familiarity": _score_familiarity(ctx.get("familiarity")),
+        "uncertainty": _has_uncertainty(description),
+    }
+
+    # Weighted composite score (0.0 = trivial, 1.0 = highly complex)
+    composite = sum(signals[k] * WEIGHTS[k] for k in WEIGHTS)
+
+    # Map composite to weight class
+    if composite < 0.20:
+        weight_class = WeightClass.A
+    elif composite < 0.45:
+        weight_class = WeightClass.B
+    elif composite < 0.70:
+        weight_class = WeightClass.C
+    else:
+        weight_class = WeightClass.D
+
+    # Confidence: higher when signals agree, lower when mixed
+    signal_values = list(signals.values())
+    variance = sum((s - composite) ** 2 for s in signal_values) / len(signal_values)
+    confidence = max(0.3, min(1.0, 1.0 - variance * 2))
+
+    # Adjust for past outcomes if available
+    past = ctx.get("past_outcomes", [])
+    if past:
+        # If past similar tasks needed higher class, boost confidence in that direction
+        past_classes = [o.get("weight_class") for o in past if o.get("weight_class")]
+        if past_classes:
+            reasoning_addendum = f" Past similar tasks used class(es): {', '.join(past_classes)}."
+        else:
+            reasoning_addendum = ""
+    else:
+        reasoning_addendum = ""
+
+    # Generate reasoning
+    dominant_signal = max(signals, key=lambda k: abs(signals[k] - 0.5))
+    reasoning = (
+        f"Classified as {weight_class.value} (confidence: {confidence:.2f}). "
+        f"Composite score: {composite:.2f}. "
+        f"Dominant signal: {dominant_signal} ({signals[dominant_signal]:.2f})."
+        f"{reasoning_addendum}"
+    )
+
+    return Classification(
+        task_description=description,
+        weight_class=weight_class,
+        confidence=round(confidence, 2),
+        reasoning=reasoning,
+        signals=signals,
+        context=ctx,
+    )

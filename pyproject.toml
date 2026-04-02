@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deliberate"
+version = "0.1.0"
+description = "Adaptive planning for autonomous AI agents"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+recall = ["recall-search"]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+deliberate = "deliberate.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["deliberate*"]

@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from deliberate import WeightClass
-from deliberate.classify import classify
+from deliberate.classify import classify, check_escalation, _CLASS_ORDER
 from deliberate.process import (
     create_brief, complete_item, get_brief_status,
     create_campaign, campaign_step, campaign_status,
@@ -150,9 +150,37 @@ def main():
     step_parser.add_argument("--content", help="Content for the artifact (reads stdin if omitted)")
     step_parser.add_argument("--json", action="store_true")
 
+    # escalation check
+    esc_parser = subparsers.add_parser("check-escalation", help="Check if weight class should change")
+    esc_parser.add_argument("current_class", choices=["A", "B", "C", "D"], help="Current weight class")
+    esc_parser.add_argument("--attempts", "-a", type=int, default=1, help="Number of attempts so far")
+    esc_parser.add_argument("--scope-grew", action="store_true", help="Scope grew during execution")
+    esc_parser.add_argument("--actual-files", type=int, help="Actual files affected (for simplification)")
+    esc_parser.add_argument("--json", action="store_true")
+
     args = parser.parse_args()
 
-    if args.command == "classify":
+    if args.command == "check-escalation":
+        wc_map = {"A": WeightClass.A, "B": WeightClass.B, "C": WeightClass.C, "D": WeightClass.D}
+        result = check_escalation(
+            wc_map[args.current_class],
+            attempts=args.attempts,
+            scope_grew=args.scope_grew,
+            actual_files=args.actual_files,
+        )
+        if result is None:
+            if args.json:
+                print(json.dumps({"change": False}))
+            else:
+                print("✅ No change recommended. Current weight class is appropriate.")
+        else:
+            if args.json:
+                print(json.dumps({"change": True, "recommendation": result["recommendation"].value, "reason": result["reason"]}))
+            else:
+                emoji = "⬆️" if _CLASS_ORDER.index(result["recommendation"]) > _CLASS_ORDER.index(wc_map[args.current_class]) else "⬇️"
+                print(f"{emoji} Recommendation: change to Class {result['recommendation'].name} ({result['recommendation'].value})")
+                print(f"   {result['reason']}")
+    elif args.command == "classify":
         cmd_classify(args)
     elif args.command == "brief":
         cmd_brief(args)

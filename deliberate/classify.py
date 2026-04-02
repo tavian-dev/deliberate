@@ -200,3 +200,72 @@ def classify(
         signals=signals,
         context=ctx,
     )
+
+
+# --- Escalation Detection ---
+
+_CLASS_ORDER = [WeightClass.A, WeightClass.B, WeightClass.C, WeightClass.D]
+
+
+def check_escalation(
+    current_class: WeightClass,
+    attempts: int = 1,
+    scope_grew: bool = False,
+    actual_files: int | None = None,
+    failure_threshold: int = 3,
+) -> dict | None:
+    """Check if the current weight class should change.
+
+    Returns None if no change recommended.
+    Returns dict with 'recommendation' (WeightClass) and 'reason' (str) if change needed.
+    """
+    current_idx = _CLASS_ORDER.index(current_class)
+
+    # --- Escalation signals ---
+
+    # Too many failed attempts → escalate
+    if attempts >= failure_threshold:
+        if current_idx < len(_CLASS_ORDER) - 1:
+            next_class = _CLASS_ORDER[current_idx + 1]
+            return {
+                "recommendation": next_class,
+                "reason": f"No progress after {attempts} attempts. Escalating from {current_class.value} to {next_class.value} for more structured planning.",
+            }
+        else:
+            return {
+                "recommendation": WeightClass.D,
+                "reason": f"Already at maximum weight class (deliberate) after {attempts} attempts. You may be stuck — consider stepping back entirely, asking for help, or breaking the problem differently.",
+            }
+
+    # A-class tasks that fail once should escalate to B
+    if current_class == WeightClass.A and attempts >= 2:
+        return {
+            "recommendation": WeightClass.B,
+            "reason": f"A-class task needed {attempts} attempts. Escalating to brief for more structure.",
+        }
+
+    # Scope grew → escalate
+    if scope_grew:
+        if current_idx < len(_CLASS_ORDER) - 1:
+            next_class = _CLASS_ORDER[current_idx + 1]
+            return {
+                "recommendation": next_class,
+                "reason": f"Scope grew significantly during {current_class.value}. Escalating to {next_class.value}.",
+            }
+
+    # --- Simplification signals ---
+
+    # Fewer files than expected → may be simpler
+    if actual_files is not None:
+        if actual_files <= 2 and current_class in (WeightClass.C, WeightClass.D):
+            return {
+                "recommendation": WeightClass.B if actual_files > 0 else WeightClass.A,
+                "reason": f"Only {actual_files} file(s) affected — simpler than expected for {current_class.value}. Consider simplifying to {WeightClass.B.value}.",
+            }
+        elif actual_files <= 5 and current_class == WeightClass.C:
+            return {
+                "recommendation": WeightClass.B,
+                "reason": f"Only {actual_files} files affected — this looks like a brief-level task, not a campaign.",
+            }
+
+    return None

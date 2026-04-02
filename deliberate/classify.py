@@ -183,6 +183,15 @@ def classify(
     # Weighted composite score (0.0 = trivial, 1.0 = highly complex)
     composite = sum(signals[k] * WEIGHTS[k] for k in WEIGHTS)
 
+    # Interaction: very low familiarity amplifies file_count signal
+    # (even small changes in unfamiliar codebases require setup/exploration)
+    familiarity_raw = ctx.get("familiarity")
+    if familiarity_raw is not None and familiarity_raw < 0.3:
+        file_count_raw = ctx.get("file_count")
+        if file_count_raw is not None and file_count_raw > 0:
+            setup_boost = (0.3 - familiarity_raw) * 0.3  # up to 0.09
+            composite = min(1.0, composite + setup_boost)
+
     # Map composite to weight class
     if composite < 0.20:
         weight_class = WeightClass.A

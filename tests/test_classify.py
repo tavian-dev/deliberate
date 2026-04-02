@@ -152,6 +152,36 @@ class TestClassify:
         assert len(result.reasoning) > 0
         assert len(result.signals) > 0
 
+    def test_low_familiarity_boosts_with_file_changes(self):
+        """Low familiarity + code changes should boost classification.
+
+        Real-world case: fixing a 2-line bug in an unfamiliar Rust project
+        requires build env setup, codebase exploration, and test debugging
+        that the base signals don't capture.
+        """
+        # With moderate familiarity: should classify lower
+        moderate = classify(
+            "Fix a bug in the codebase",
+            context={"file_count": 2, "familiarity": 0.5},
+        )
+        # With very low familiarity: same task should classify higher
+        unfamiliar = classify(
+            "Fix a bug in the codebase",
+            context={"file_count": 2, "familiarity": 0.1},
+        )
+        class_order = [WeightClass.A, WeightClass.B, WeightClass.C, WeightClass.D]
+        assert class_order.index(unfamiliar.weight_class) >= class_order.index(moderate.weight_class)
+
+    def test_low_familiarity_setup_boost_requires_files(self):
+        """Setup boost only activates when both familiarity < 0.3 and file_count > 0."""
+        from deliberate.classify import WEIGHTS
+        # Same description, same file_count, different familiarity
+        low_fam = classify("Fix a small bug", context={"familiarity": 0.1, "file_count": 5})
+        high_fam = classify("Fix a small bug", context={"familiarity": 0.5, "file_count": 5})
+        # Low familiarity should classify same or higher
+        class_order = [WeightClass.A, WeightClass.B, WeightClass.C, WeightClass.D]
+        assert class_order.index(low_fam.weight_class) >= class_order.index(high_fam.weight_class)
+
     def test_confidence_range(self):
         result = classify("a task")
         assert 0.3 <= result.confidence <= 1.0

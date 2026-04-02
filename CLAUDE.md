@@ -26,6 +26,11 @@ An adaptive planning system for automated development workflows. Classifies task
 ### Review with a different model
 - Use Sonnet or Codex (not Opus) for `/speckit.clarify` and `/speckit.analyze` to avoid same-model cognitive bias
 - For PR review, prefer a different model than the one that wrote the code
+- **After implementing a campaign plan**, run a cross-model review before merging:
+  1. Load `templates/review.md` as the review template
+  2. Spawn a Sonnet sub-agent with the review template, spec, plan, and a diff of changes
+  3. Address any issues found before merging
+  4. This step caught 5 real bugs in deliberate's own v0.5 release — it's not optional for campaigns
 
 ### Testing
 - All new code must have tests

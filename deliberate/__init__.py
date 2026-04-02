@@ -49,3 +49,4 @@ class Brief:
 # Public API
 from deliberate.classify import classify
 from deliberate.enforce import check_prerequisites
+from deliberate.worktree import WorktreeError

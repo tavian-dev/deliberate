@@ -11,7 +11,8 @@ dependencies = []
 
 [project.optional-dependencies]
 recall = ["recall-search"]
-dev = ["pytest>=7.0"]
+mcp = ["fastmcp>=2.0"]
+dev = ["pytest>=7.0", "fastmcp>=2.0"]
 
 [project.scripts]
 deliberate = "deliberate.cli:main"

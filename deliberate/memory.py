@@ -17,16 +17,22 @@ def _outcomes_dir(base_dir: Path) -> Path:
     return base_dir / ".deliberate" / "outcomes"
 
 
+VALID_OUTCOMES = ("success", "partial", "failure", "abandoned")
+
+
 def record_outcome(
     task: str,
     weight_class: WeightClass,
-    outcome: str,  # "success", "partial", "failure", "abandoned"
+    outcome: str,
     base_dir: Path = Path("."),
     surprises: Optional[list[str]] = None,
     duration_minutes: Optional[int] = None,
     escalated_from: Optional[WeightClass] = None,
 ):
     """Record a plan outcome as a markdown file."""
+    if outcome not in VALID_OUTCOMES:
+        raise ValueError(f"Invalid outcome '{outcome}'. Must be one of: {VALID_OUTCOMES}")
+
     out_dir = _outcomes_dir(base_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -121,12 +127,13 @@ def search_outcomes(
     query_words = set(query.lower().split())
     results = []
     for f in files[:50]:  # Check last 50 files max
-        content = f.read_text().lower()
-        matches = sum(1 for w in query_words if w in content)
+        text = f.read_text()  # Read once, reuse
+        content_lower = text.lower()
+        matches = sum(1 for w in query_words if w in content_lower)
         if matches > 0:
             # Extract task from frontmatter
             task = ""
-            for line in f.read_text().split("\n"):
+            for line in text.split("\n"):
                 if line.startswith("task:"):
                     task = line.split(":", 1)[1].strip().strip('"')
                     break

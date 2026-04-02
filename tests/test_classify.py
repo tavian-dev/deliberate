@@ -36,16 +36,22 @@ class TestScoreKeywords:
         assert score < 0  # Negative = simple
 
     def test_complexity_keywords(self):
-        score = _score_keywords("redesign the authentication infrastructure")
+        score = _score_keywords("redesign the authentication infrastructure and integrate new framework")
         assert score > 0  # Positive = complex
 
     def test_neutral(self):
         score = _score_keywords("do something with the thing")
         assert -0.3 < score < 0.3  # Near zero
 
-    def test_uncertainty_keywords(self):
-        score = _score_keywords("investigate whether we should migrate the database")
-        assert score > 0  # Uncertainty adds complexity
+    def test_uncertainty_not_in_keywords(self):
+        # Uncertainty is handled by _has_uncertainty, not _score_keywords
+        score = _score_keywords("investigate whether we should evaluate options")
+        assert score == 0.0  # No complexity/simplicity keywords
+
+    def test_no_substring_false_positives(self):
+        # "fix" shouldn't match "prefix", "api" shouldn't match "capital"
+        score = _score_keywords("the prefix of the capital city")
+        assert score == 0.0  # No actual keywords present
 
 
 class TestScoreFileCount:

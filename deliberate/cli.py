@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from deliberate import WeightClass
-from deliberate.classify import classify, check_escalation, _CLASS_ORDER
+from deliberate.classify import classify, check_escalation, CLASS_ORDER
 from deliberate.process import (
     create_brief, complete_item, get_brief_status,
     create_campaign, campaign_step, campaign_status,
@@ -177,7 +177,7 @@ def main():
             if args.json:
                 print(json.dumps({"change": True, "recommendation": result["recommendation"].value, "reason": result["reason"]}))
             else:
-                emoji = "⬆️" if _CLASS_ORDER.index(result["recommendation"]) > _CLASS_ORDER.index(wc_map[args.current_class]) else "⬇️"
+                emoji = "⬆️" if CLASS_ORDER.index(result["recommendation"]) > CLASS_ORDER.index(wc_map[args.current_class]) else "⬇️"
                 print(f"{emoji} Recommendation: change to Class {result['recommendation'].name} ({result['recommendation'].value})")
                 print(f"   {result['reason']}")
     elif args.command == "classify":

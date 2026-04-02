@@ -57,16 +57,38 @@ def _score_word_count(description: str) -> float:
 
 
 def _score_keywords(description: str) -> float:
-    """Check for complexity/simplicity keywords. Returns -1.0 to 1.0."""
-    desc_lower = description.lower()
-    words = set(re.findall(r"[a-z]+(?:\s+[a-z]+)?", desc_lower))
+    """Check for complexity/simplicity keywords. Returns -1.0 to 1.0.
 
-    simplicity = sum(1 for kw in SIMPLICITY_KEYWORDS if kw in desc_lower)
-    complexity = sum(1 for kw in COMPLEXITY_KEYWORDS if kw in desc_lower)
-    uncertainty = sum(1 for kw in UNCERTAINTY_KEYWORDS if kw in desc_lower)
+    Uses word-boundary matching to avoid substring false positives
+    (e.g., "fix" shouldn't match "prefix").
+    """
+    desc_lower = description.lower()
+    # Extract individual words for boundary-safe single-keyword matching
+    words = set(re.findall(r"\b[a-z]+\b", desc_lower))
+
+    # Use word-boundary regex for multi-word keywords, set membership for single words
+    def keyword_matches(keywords: frozenset) -> int:
+        count = 0
+        for kw in keywords:
+            if " " in kw:
+                # Multi-word: use substring match (word boundaries handled by the phrase)
+                if kw in desc_lower:
+                    count += 1
+            else:
+                # Single word: check word set to avoid substring false positives
+                if kw in words:
+                    count += 1
+        return count
+
+    simplicity = keyword_matches(SIMPLICITY_KEYWORDS)
+    complexity = keyword_matches(COMPLEXITY_KEYWORDS)
+    # Note: uncertainty is scored separately in _has_uncertainty(), not double-counted here
+    total = simplicity + complexity
+    if total == 0:
+        return 0.0
 
     # Normalize: positive = complex, negative = simple
-    score = (complexity + uncertainty * 0.5 - simplicity) / max(simplicity + complexity + uncertainty, 1)
+    score = (complexity - simplicity) / total
     return max(-1.0, min(1.0, score))
 
 
@@ -204,7 +226,7 @@ def classify(
 
 # --- Escalation Detection ---
 
-_CLASS_ORDER = [WeightClass.A, WeightClass.B, WeightClass.C, WeightClass.D]
+CLASS_ORDER = [WeightClass.A, WeightClass.B, WeightClass.C, WeightClass.D]
 
 
 def check_escalation(
@@ -219,14 +241,14 @@ def check_escalation(
     Returns None if no change recommended.
     Returns dict with 'recommendation' (WeightClass) and 'reason' (str) if change needed.
     """
-    current_idx = _CLASS_ORDER.index(current_class)
+    current_idx = CLASS_ORDER.index(current_class)
 
     # --- Escalation signals ---
 
     # Too many failed attempts → escalate
     if attempts >= failure_threshold:
-        if current_idx < len(_CLASS_ORDER) - 1:
-            next_class = _CLASS_ORDER[current_idx + 1]
+        if current_idx < len(CLASS_ORDER) - 1:
+            next_class = CLASS_ORDER[current_idx + 1]
             return {
                 "recommendation": next_class,
                 "reason": f"No progress after {attempts} attempts. Escalating from {current_class.value} to {next_class.value} for more structured planning.",
@@ -246,8 +268,8 @@ def check_escalation(
 
     # Scope grew → escalate
     if scope_grew:
-        if current_idx < len(_CLASS_ORDER) - 1:
-            next_class = _CLASS_ORDER[current_idx + 1]
+        if current_idx < len(CLASS_ORDER) - 1:
+            next_class = CLASS_ORDER[current_idx + 1]
             return {
                 "recommendation": next_class,
                 "reason": f"Scope grew significantly during {current_class.value}. Escalating to {next_class.value}.",

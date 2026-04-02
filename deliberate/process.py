@@ -64,7 +64,10 @@ def campaign_step(
         raise ValueError(f"Unknown step: {step}. Valid steps: {CAMPAIGN_STEPS}")
 
     # Load current status to determine weight class
+    # Read status once and reuse (avoid double-read race condition)
     status = campaign_status(campaign_dir)
+    if status["status"] == "none":
+        raise ValueError(f"No campaign found at {campaign_dir}")
     wc = WeightClass(status.get("weight_class", "campaign"))
 
     # Check prerequisites
@@ -76,14 +79,11 @@ def campaign_step(
     artifact_path = campaign_dir / f"{step}.md"
     artifact_path.write_text(content)
 
-    # Update status
-    status_path = campaign_dir / "status.json"
-    if status_path.exists():
-        status = json.loads(status_path.read_text())
+    # Update status (mutate the dict we already have, write once)
     status["status"] = STATUS_MAP.get(step, step)
     status["artifacts"][step] = True
     status[f"{step}_at"] = datetime.now().isoformat()
-    status_path.write_text(json.dumps(status, indent=2))
+    (campaign_dir / "status.json").write_text(json.dumps(status, indent=2))
 
     return status
 

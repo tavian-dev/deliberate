@@ -105,8 +105,10 @@ def cmd_classify(args):
 def main():
     parser = argparse.ArgumentParser(
         prog="deliberate",
-        description="Adaptive planning for autonomous AI agents.",
+        description="Adaptive planning for AI coding agents.",
     )
+    parser.add_argument("--quiet", "-q", action="store_true", help="Minimal output")
+    parser.add_argument("--version", action="version", version="deliberate 1.0.0")
     subparsers = parser.add_subparsers(dest="command")
 
     # classify

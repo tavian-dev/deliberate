@@ -10,36 +10,35 @@
 - CLI: `deliberate classify`
 - 44 tests
 
-## Planned (v1.0)
-
-### v0.2.0 — Lightweight Process
+### v0.2.0 — Lightweight Process ✅
 - Class A: verification-only flow
 - Class B: brief.md generation with checklists
 - Brief completion tracking
 - CLI: `deliberate act`, `deliberate brief`
 
-### v0.3.0 — Full Pipeline
+### v0.3.0 — Full Pipeline ✅
 - Class C: spec → plan → tasks → implement with enforcement
 - Campaign lifecycle management
 - Template rendering for each step
 - CLI: `deliberate spec`, `deliberate plan`, `deliberate tasks`
 
-### v0.4.0 — Escalation
+### v0.4.0 — Escalation ✅
 - Mid-process reclassification detection
 - Outcome-based stall signals
 - Artifact preservation on escalation
 - CLI: `deliberate check-status`
 
-### v0.5.0 — Memory
+### v0.5.0 — Memory ✅
 - Outcome recording after plan completion
 - recall integration for past outcome search
 - Classification improvement from experience
 - CLI: `deliberate outcomes`
 
-### v1.0.0 — Worktrees + Polish
+### v1.0.0 — Worktrees + Polish ✅
 - Git worktree management for parallel implementation
 - README, docs, and packaging complete
-- All 44 tasks from original spec done
+- 100 tests, all 6 user stories implemented
+- Cross-model code review (Sonnet found and fixed 5 bugs)
 
 ## Aspirational (Post v1.0)
 

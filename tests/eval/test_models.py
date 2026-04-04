@@ -73,3 +73,36 @@ class TestTreatment:
         assert Treatment.CLASS_A.value == "class_a"
         assert Treatment.CLASS_B.value == "class_b"
         assert Treatment.CLASS_C.value == "class_c"
+
+
+class TestTaskIO:
+    """Tests for task loading, saving, and validation."""
+
+    def test_append_task(self, tmp_path):
+        from deliberate_eval.tasks import append_task, load_tasks
+        path = tmp_path / "tasks.jsonl"
+        t1 = Task(id="t1", description="Fix A", repo="a/b", test_command="pytest")
+        t2 = Task(id="t2", description="Fix B", repo="c/d", test_command="make test")
+        append_task(t1, path)
+        append_task(t2, path)
+        loaded = load_tasks(path)
+        assert len(loaded) == 2
+        assert loaded[0].id == "t1"
+        assert loaded[1].id == "t2"
+
+    def test_validate_task_valid(self):
+        from deliberate_eval.tasks import validate_task
+        t = Task(id="t1", description="Fix", repo="a/b", test_command="pytest")
+        assert validate_task(t) == []
+
+    def test_validate_task_missing_fields(self):
+        from deliberate_eval.tasks import validate_task
+        t = Task(id="", description="", repo="", test_command="")
+        errors = validate_task(t)
+        assert len(errors) >= 3
+
+    def test_validate_task_bad_difficulty(self):
+        from deliberate_eval.tasks import validate_task
+        t = Task(id="t1", description="Fix", repo="a/b", test_command="pytest", difficulty="extreme")
+        errors = validate_task(t)
+        assert any("difficulty" in e for e in errors)

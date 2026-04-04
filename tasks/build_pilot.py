@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+"""Build pilot.jsonl from curated task definitions."""
+
+import json
+from pathlib import Path
+
+tasks = [
+    # === TRIVIAL (3) ===
+    {
+        "id": "humanize-24",
+        "description": (
+            "humanize.intcomma(num, ndigits=0) does not behave as expected.\n\n"
+            "Running `humanize.intcomma(12345.111, ndigits=0)` returns '12,345.111' "
+            "instead of the expected '12,345'. When ndigits=0, there should be no "
+            "digits after the decimal place. The issue is that ndigits=0 is treated "
+            "the same as ndigits=None (falsy), so the rounding is skipped entirely."
+        ),
+        "repo": "python-humanize/humanize",
+        "test_command": "pytest tests/test_number.py -k test_intcomma",
+        "difficulty": "trivial",
+        "issue_url": "https://github.com/python-humanize/humanize/issues/24",
+        "repo_ref": "29d37fb15945433d295b942bd839ae152770eca0",
+        "setup_command": "pip install -e '.[tests]' && git apply $EVAL_DIR/tasks/patches/humanize-24.patch",
+    },
+    {
+        "id": "boltons-389",
+        "description": (
+            "BarrelList.sort() crashes when the list has multiple sublists.\n\n"
+            "In boltons/listutils.py, the sort() method does:\n"
+            "  del self.lists[:]\n"
+            "  self.lists[0] = tmp_sorted\n\n"
+            "After del self.lists[:], the list is empty, so self.lists[0] raises "
+            "IndexError. Should use self.lists.append(tmp_sorted) instead."
+        ),
+        "repo": "mahmoud/boltons",
+        "test_command": "pytest tests/test_listutils.py -k test_sort",
+        "difficulty": "trivial",
+        "issue_url": "https://github.com/mahmoud/boltons/pull/389",
+        "repo_ref": "0c88f25323de3ff85bcca844b9ce6cd171a80392",
+        "setup_command": "pip install -e . && pip install pytest && git apply $EVAL_DIR/tasks/patches/boltons-389.patch",
+    },
+    {
+        "id": "more-itertools-658",
+        "description": (
+            "split_after yields a spurious empty list when maxsplit=1.\n\n"
+            ">>> tuple(split_after([1], lambda x: x == 1))\n"
+            "([1],)\n"
+            ">>> tuple(split_after([1], lambda x: x == 1, maxsplit=2))\n"
+            "([1],)\n"
+            ">>> tuple(split_after([1], lambda x: x == 1, maxsplit=1))\n"
+            "([1], [])  # unexpected empty list\n\n"
+            "When maxsplit=1, the function yields an extra empty list at the end "
+            "because it unconditionally yields the remaining items from the iterator, "
+            "even when there are none."
+        ),
+        "repo": "more-itertools/more-itertools",
+        "test_command": "pytest tests/test_more.py -k SplitAfterTests",
+        "difficulty": "trivial",
+        "issue_url": "https://github.com/more-itertools/more-itertools/issues/658",
+        "repo_ref": "6793bd3e4ed15318746ed2511733f12a9932eb64",
+        "setup_command": "pip install -e . && pip install pytest && git apply $EVAL_DIR/tasks/patches/more-itertools-658.patch",
+    },
+
+    # === MEDIUM (4) ===
+    {
+        "id": "attrs-1348",
+        "description": (
+            "Error occurs when using converters.optional and converters.pipe together.\n\n"
+            "This works in attrs 23.2.0 but breaks in 24.x:\n"
+            "```python\n"
+            "@attr.define\n"
+            "class A:\n"
+            "    abc: int | None = attr.field(\n"
+            "        converter=attr.converters.optional(attr.converters.pipe(str, int)),\n"
+            "        default=None\n"
+            "    )\n"
+            "```\n\n"
+            "Error: TypeError in converters.optional when the argument is a Converter "
+            "instance (like the result of pipe()) instead of a plain callable. The "
+            "optional() wrapper needs to handle Converter instances, not just functions."
+        ),
+        "repo": "python-attrs/attrs",
+        "test_command": "pytest tests/test_converters.py -k 'TestOptionalPipe or test_converter_instance'",
+        "difficulty": "medium",
+        "issue_url": "https://github.com/python-attrs/attrs/issues/1348",
+        "repo_ref": "ee0f19b696c60064c58cdc08b3265aef56d49ff8",
+        "setup_command": "pip install -e '.[tests]' && git apply $EVAL_DIR/tasks/patches/attrs-1348.patch",
+    },
+    {
+        "id": "isort-2338",
+        "description": (
+            "split_on_trailing_comma crashes or misformats imports with 'as' aliases.\n\n"
+            "```python\n"
+            "from lib import (a as b,)\n"
+            "```\n"
+            "When split_on_trailing_comma=True, isort crashes or produces incorrect "
+            "output for imports that use 'as' aliases with trailing commas. The "
+            "import_statement variable can be None in the code path that handles "
+            "trailing comma splitting, causing an AttributeError."
+        ),
+        "repo": "PyCQA/isort",
+        "test_command": "pytest tests/unit/test_isort.py -k test_split_on_trailing_comma_wih_as",
+        "difficulty": "medium",
+        "issue_url": "https://github.com/PyCQA/isort/issues/2338",
+        "repo_ref": "1c8d963c54a6ed75d5f29e16835dcfba06bd12d3",
+        "setup_command": "pip install -e '.[dev]' && git apply $EVAL_DIR/tasks/patches/isort-2338.patch",
+    },
+    {
+        "id": "click-3019",
+        "description": (
+            "click.prompt and click.confirm prompt_suffix no longer works when suffix is empty.\n\n"
+            "After recent changes, passing prompt_suffix='' to click.prompt() or "
+            "click.confirm() no longer produces a prompt without a suffix. Instead, "
+            "a space is still appended. This is because the code does "
+            "text.rstrip(' ') to strip the last character and then echoes a space "
+            "separately (as a colorama workaround). When prompt_suffix is empty, "
+            "this strips the last character of the actual prompt text.\n\n"
+            "The fix needs to be applied in both the prompt() and confirm() functions "
+            "in src/click/termui.py."
+        ),
+        "repo": "pallets/click",
+        "test_command": "pytest tests/test_utils.py -k test_prompt",
+        "difficulty": "medium",
+        "issue_url": "https://github.com/pallets/click/issues/3019",
+        "repo_ref": "5f86603a84e12bdec1584c15c9f982740e613c45",
+        "setup_command": "pip install -e '.[dev]' && git apply $EVAL_DIR/tasks/patches/click-3019.patch",
+    },
+    {
+        "id": "black-4841",
+        "description": (
+            "Black crashes with 'Unexpected error' when fmt:off and fmt:on are used "
+            "within an indented block of comments.\n\n"
+            "```python\n"
+            "class Foo:\n"
+            "    # fmt: off\n"
+            "    x = 1\n"
+            "    # fmt: on\n"
+            "```\n\n"
+            "When fmt:off/fmt:on directives appear inside indented code (not at the "
+            "top level), Black crashes. The issue is in src/black/comments.py and "
+            "src/black/linegen.py where exact string matching ('# fmt: off' in line) "
+            "doesn't account for leading whitespace. The checks need to use a helper "
+            "that detects the directive regardless of indentation."
+        ),
+        "repo": "psf/black",
+        "test_command": "pytest tests/test_format.py -k test_fmtskip11",
+        "difficulty": "medium",
+        "issue_url": "https://github.com/psf/black/issues/4841",
+        "repo_ref": "a8bfcc1040fdfce2e02cdd85dc8bf4e7abe0462f",
+        "setup_command": "pip install -e '.[d]' && git apply $EVAL_DIR/tasks/patches/black-4841.patch",
+    },
+
+    # === HARD (3) ===
+    {
+        "id": "flask-5870",
+        "description": (
+            "Teardown handler chain skips subsequent handlers if one raises an exception.\n\n"
+            "Flask's do_teardown_request/do_teardown_appcontext methods execute "
+            "registered teardown handlers in a loop. If any handler raises an "
+            "exception, the loop terminates immediately and all subsequent handlers "
+            "are skipped. This can cause critical cleanup routines (closing DB "
+            "connections, releasing locks) to be skipped if a non-critical handler "
+            "fails.\n\n"
+            "The fix needs to:\n"
+            "1. Wrap individual handlers in try/except in src/flask/app.py\n"
+            "2. Update context cleanup in src/flask/ctx.py\n"
+            "3. Add an error collection utility in src/flask/helpers.py\n"
+            "4. Handle ExceptionGroup on Python 3.11+ vs fallback on 3.10"
+        ),
+        "repo": "pallets/flask",
+        "test_command": "pytest tests/test_appctx.py tests/test_basic.py tests/test_helpers.py -k teardown",
+        "difficulty": "hard",
+        "issue_url": "https://github.com/pallets/flask/issues/5870",
+        "repo_ref": "7b0088693ece1bd3a9238a6fdf56ed8df7a4d43b",
+        "setup_command": "pip install -e '.[dev]' && git apply $EVAL_DIR/tasks/patches/flask-5870.patch",
+    },
+    {
+        "id": "attrs-1479",
+        "description": (
+            "Field alias is None during field_transformer callback, preventing "
+            "alias-based transformations.\n\n"
+            "When using field_transformer to inspect or modify fields, the alias "
+            "attribute is always None at the time the transformer runs. This prevents "
+            "transformations that need to work with aliases (e.g., renaming fields).\n\n"
+            "The issue is in src/attr/_make.py — the default alias resolution "
+            "(stripping leading underscores) happens after the field_transformer "
+            "callback. The fix requires restructuring the alias resolution to run "
+            "in two passes: once before the transformer (so aliases are available) "
+            "and once after (to handle any new fields the transformer adds). Also "
+            "needs to update Attribute.evolve() to auto-update alias when name changes."
+        ),
+        "repo": "python-attrs/attrs",
+        "test_command": "pytest tests/test_hooks.py tests/test_make.py -k alias",
+        "difficulty": "hard",
+        "issue_url": "https://github.com/python-attrs/attrs/issues/1479",
+        "repo_ref": "f3bcc37c3d2dc3199715f825a86b748c3b3805f9",
+        "setup_command": "pip install -e '.[tests]' && git apply $EVAL_DIR/tasks/patches/attrs-1479.patch",
+    },
+    {
+        "id": "flask-5916",
+        "description": (
+            "provide_automatic_options cannot be enabled, only disabled; routing "
+            "logic for OPTIONS is inverted.\n\n"
+            "Flask adds OPTIONS to every route by default, then checks "
+            "provide_automatic_options on each request to decide whether to handle "
+            "it. However, if PROVIDE_AUTOMATIC_OPTIONS config is disabled (not the "
+            "default), the logic for the provide_automatic_options argument and "
+            "attribute doesn't work correctly to enable it — it only works for "
+            "disabling.\n\n"
+            "The fix is in src/flask/sansio/app.py and requires understanding the "
+            "interaction between provide_automatic_options as both a config flag "
+            "and a route-level attribute, plus how it flows through Blueprint vs "
+            "App registration."
+        ),
+        "repo": "pallets/flask",
+        "test_command": "pytest tests/test_basic.py tests/test_views.py tests/test_blueprints.py -k 'options or OPTIONS'",
+        "difficulty": "hard",
+        "issue_url": "https://github.com/pallets/flask/issues/5916",
+        "repo_ref": "d3b78fd18a8d9e224cb9ef58a23cec9b1ffc9ce9",
+        "setup_command": "pip install -e '.[dev]' && git apply $EVAL_DIR/tasks/patches/flask-5916.patch",
+    },
+]
+
+# Write JSONL
+output = Path("/home/dev/deliberate/tasks/pilot.jsonl")
+with output.open("w") as f:
+    for task in tasks:
+        f.write(json.dumps(task) + "\n")
+
+print(f"Wrote {len(tasks)} tasks to {output}")
+
+# Verify by loading
+from deliberate_eval.tasks import load_tasks, validate_task
+loaded = load_tasks(output)
+for t in loaded:
+    errors = validate_task(t)
+    status = "OK" if not errors else f"ERRORS: {errors}"
+    print(f"  [{t.difficulty:7s}] {t.id}: {status}")

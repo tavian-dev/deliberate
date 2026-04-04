@@ -1,7 +1,7 @@
 """MCP server for deliberate — expose planning tools via Model Context Protocol.
 
 Tools:
-  - deliberate_classify: classify task complexity
+  - deliberate_guide: show weight class reference guide
   - deliberate_brief: create a Class B brief
   - deliberate_brief_status: check brief completion
   - deliberate_escalation: check if weight class should change
@@ -15,69 +15,21 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from deliberate import WeightClass
-from deliberate.classify import classify, check_escalation, CLASS_ORDER
+from deliberate.classify import get_guide, check_escalation, CLASS_ORDER
 from deliberate.process import create_brief, get_brief_status
 
 mcp = FastMCP("deliberate")
 
 
 @mcp.tool()
-def deliberate_classify(
-    description: str,
-    file_count: int = -1,
-    familiarity: float = -1.0,
-) -> str:
-    """Classify a task's complexity into weight class A/B/C/D.
+def deliberate_guide() -> str:
+    """Show the weight class reference guide.
 
-    Args:
-        description: Natural language task description
-        file_count: Estimated number of files affected (-1 for unknown)
-        familiarity: How familiar with this area, 0.0-1.0 (-1 for unknown)
+    Returns a guide describing each weight class (A/B/C/D) with
+    examples of when to use each one. Read this to decide which
+    class fits your current task.
     """
-    context = {}
-    if file_count >= 0:
-        context["file_count"] = file_count
-    if familiarity >= 0:
-        context["familiarity"] = familiarity
-
-    result = classify(description, context=context or None)
-
-    emoji = {"act": "⚡", "brief": "📋", "campaign": "🏗️", "deliberate": "🔬"}
-    e = emoji.get(result.weight_class.value, "")
-    return (
-        f"{e} Class {result.weight_class.name}: {result.weight_class.value}\n"
-        f"Confidence: {result.confidence:.0%}\n"
-        f"{result.reasoning}"
-    )
-
-
-@mcp.tool()
-def deliberate_classify_json(
-    description: str,
-    file_count: int = -1,
-    familiarity: float = -1.0,
-) -> str:
-    """Classify task complexity and return structured JSON result.
-
-    Args:
-        description: Natural language task description
-        file_count: Estimated files affected (-1 for unknown)
-        familiarity: Area familiarity 0.0-1.0 (-1 for unknown)
-    """
-    import json
-    context = {}
-    if file_count >= 0:
-        context["file_count"] = file_count
-    if familiarity >= 0:
-        context["familiarity"] = familiarity
-
-    result = classify(description, context=context or None)
-    return json.dumps({
-        "weight_class": result.weight_class.value,
-        "confidence": result.confidence,
-        "reasoning": result.reasoning,
-        "signals": {k: round(v, 3) for k, v in result.signals.items()},
-    })
+    return get_guide()
 
 
 @mcp.tool()

@@ -1,7 +1,7 @@
 # deliberate — Project Guide for Claude Code
 
 ## What this is
-An adaptive planning system for automated development workflows. Classifies task complexity into weight classes (A/B/C/D) and enforces proportional process.
+An adaptive planning system for automated development workflows. Routes tasks to proportional processes based on weight classes (A/B/C/D). The agent chooses the class; deliberate enforces the process.
 
 ## Project structure
 - `deliberate/` — Python package (classify, enforce, process, templates, memory, worktree, cli)
@@ -46,11 +46,11 @@ An adaptive planning system for automated development workflows. Classifies task
 - Docstrings for all public functions and classes
 
 ## Key files
-- `deliberate/classify.py` — The classifier (core algorithm, heuristic signals)
+- `deliberate/classify.py` — Weight class guide + escalation detection
 - `deliberate/enforce.py` — Artifact prerequisite enforcement
+- `deliberate/process.py` — Brief and campaign lifecycle
 - `deliberate/cli.py` — CLI entry point
 - `templates/` — Editable templates (agents can modify these)
-- `specs/001-adaptive-planning/` — Original feature spec, plan, and task list
 
 ## Running tests
 ```bash
@@ -59,6 +59,6 @@ python -m pytest tests/ -v
 ```
 
 ## Current state
-- v0.1.0: MVP — classify command with 44 tests
-- Next: US2 (lightweight process), US3 (full pipeline enforcement)
-- See `specs/001-adaptive-planning/tasks.md` for the full roadmap
+- v2.0.0: Replaced heuristic classifier with agent-readable guide
+- Agent picks the weight class; deliberate manages the process
+- 94 tests, all passing

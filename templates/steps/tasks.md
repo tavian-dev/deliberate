@@ -31,24 +31,32 @@ Re-read the task list. Confirm every task has a file path, an ID,
 and is independently verifiable. Any task that says "implement X"
 without naming a specific file or function is not concrete enough.
 
-## Read the output template
+## Write the tasks
 
-Read `templates/tasks.md` in the deliberate install directory for
-the format your task list should follow.
+The output format is in `templates/tasks.md` (the *template*). This
+file is the *step guide*.
 
-## Save the tasks
+Task IDs are author-assigned: `T001`, `T002`, etc. in execution order.
+Mark parallelizable tasks with `[P]` after the ID. Label MVP-scope
+tasks with `[MVP]`.
 
+Draft your task list, then submit:
 ```
 deliberate step tasks --campaign <campaign-dir> --content "$(cat your-tasks.md)"
 ```
 
-This will verify that the plan exists before accepting the task list.
+The tool verifies the plan exists before accepting.
+
+## Do not proceed unless
+
+- Every task names specific file(s) it touches
+- Tasks are ordered so dependencies come first
+- MVP scope is identified
 
 ## Next step
 
-Implement. Work through the task list top to bottom. Check off each
-task as you complete it. If scope changes significantly during
-implementation, check escalation:
+Implement. Work through the task list top to bottom. If scope changes
+significantly during implementation:
 
 ```
 deliberate check-escalation C --actual-files <N>

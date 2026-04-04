@@ -28,19 +28,26 @@ or explicitly deferred with a reason. If a question is still open and
 is on the critical path for the spec, that is a blocker — do not
 proceed to `spec` until it is resolved or accepted as a known risk.
 
-## Read the output template
+## Write the research document
 
-Read `templates/research.md` in the deliberate install directory for
-the format your research document should follow.
+The output format is in `templates/research.md` (the *template*). This
+file is the *step guide*.
 
-## Save the research
-
+Draft your research, then submit:
 ```
 deliberate step research --campaign <campaign-dir> --content "$(cat your-research.md)"
 ```
 
+## Do not proceed unless
+
+- Every question from step 1 is answered or deferred with a reason
+- Critical-path unknowns are resolved (not just acknowledged)
+- A clear recommendation exists: proceed, pivot, or abandon
+
 ## Next step
 
-Write the spec: `deliberate step spec --campaign <campaign-dir>`
+Write the spec. Read the step guide first:
+`templates/steps/spec.md`
 
-Before writing the spec, read `templates/steps/spec.md` for guidance.
+Then run:
+`deliberate step spec --campaign <campaign-dir> --content "..."`

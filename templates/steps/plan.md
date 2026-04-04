@@ -22,21 +22,28 @@ requirements into technical decisions and a phased approach.
    has no corresponding plan entry, add it or explicitly defer it with
    a reason.
 
-## Read the output template
+## Write the plan
 
-Read `templates/plan.md` in the deliberate install directory for the
-format your plan should follow.
+The output format is in `templates/plan.md` (the *template*). This
+file is the *step guide* — how to approach producing it.
 
-## Save the plan
-
+Draft your plan, then submit:
 ```
 deliberate step plan --campaign <campaign-dir> --content "$(cat your-plan.md)"
 ```
 
-This will verify that the spec exists before accepting the plan.
+The tool verifies the spec exists before accepting the plan.
+
+## Do not proceed unless
+
+- Every spec requirement maps to a phase or decision in the plan
+- Each phase has a concrete end condition
+- Risks are named with mitigations
 
 ## Next step
 
-Break the plan into tasks: `deliberate step tasks --campaign <campaign-dir>`
+Break the plan into tasks. Read the step guide first:
+`templates/steps/tasks.md`
 
-Before writing tasks, read `templates/steps/tasks.md` for guidance.
+Then run:
+`deliberate step tasks --campaign <campaign-dir> --content "..."`

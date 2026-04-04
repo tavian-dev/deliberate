@@ -30,24 +30,27 @@ Re-read your spec and check:
 
 If any of these fail, revise the spec before proceeding.
 
-## Read the output template
+## Write the spec
 
-Read `templates/spec.md` in the deliberate install directory. It shows
-the format your spec should follow. Fill it in for your specific task.
+The output format is in `templates/spec.md` (the *template* — what to
+produce). This file you're reading is the *step guide* — how to
+approach producing it.
 
-## Save the spec
-
+Draft your spec anywhere, then submit it:
 ```
 deliberate step spec --campaign <campaign-dir> --content "$(cat your-spec.md)"
 ```
 
-Or pipe it:
-```
-cat your-spec.md | deliberate step spec --campaign <campaign-dir>
-```
+## Do not proceed unless
+
+- Every requirement has a testable acceptance criterion
+- Out-of-scope items are explicitly listed
+- No unresolved questions remain that would change the plan
 
 ## Next step
 
-Write the plan: `deliberate step plan --campaign <campaign-dir>`
+Write the plan. Read the step guide first:
+`templates/steps/plan.md`
 
-Before writing the plan, read `templates/steps/plan.md` for guidance.
+Then run:
+`deliberate step plan --campaign <campaign-dir> --content "..."`

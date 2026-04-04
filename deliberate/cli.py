@@ -108,11 +108,7 @@ def main():
 
     # classify (deprecated alias for guide)
     cls_parser = subparsers.add_parser("classify", help="Deprecated: use 'guide' instead")
-    cls_parser.add_argument("description", nargs="?", default="", help="(ignored)")
-    cls_parser.add_argument("--file-count", "-f", type=int, help="(ignored)")
-    cls_parser.add_argument("--familiarity", type=float, help="(ignored)")
     cls_parser.add_argument("--json", action="store_true", help="JSON output")
-    cls_parser.add_argument("--verbose", "-v", action="store_true", help="(ignored)")
 
     # brief
     brief_parser = subparsers.add_parser("brief", help="Create a Class B brief with checklist")

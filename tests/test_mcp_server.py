@@ -6,39 +6,23 @@ from pathlib import Path
 
 import pytest
 from mcp_server import (
-    deliberate_classify, deliberate_classify_json,
+    deliberate_guide,
     deliberate_brief, deliberate_brief_status,
     deliberate_check_escalation,
 )
 
 
-class TestClassifyTool:
-    def test_trivial_task(self):
-        result = deliberate_classify("fix typo in README")
-        assert "act" in result.lower() or "Class A" in result
+class TestGuideTool:
+    def test_returns_guide(self):
+        result = deliberate_guide()
+        assert "Class A" in result
+        assert "Class B" in result
+        assert "Class C" in result
+        assert "Class D" in result
 
-    def test_complex_task(self):
-        result = deliberate_classify(
-            "redesign the authentication system with OAuth2 and database migration"
-        )
-        assert "campaign" in result.lower() or "Class C" in result
-
-    def test_with_context(self):
-        result = deliberate_classify("add logging", file_count=2, familiarity=0.9)
-        assert "Class" in result
-
-
-class TestClassifyJsonTool:
-    def test_returns_valid_json(self):
-        result = deliberate_classify_json("fix typo")
-        data = json.loads(result)
-        assert "weight_class" in data
-        assert "confidence" in data
-        assert "signals" in data
-
-    def test_confidence_range(self):
-        data = json.loads(deliberate_classify_json("some task"))
-        assert 0.0 <= data["confidence"] <= 1.0
+    def test_contains_commands(self):
+        result = deliberate_guide()
+        assert "deliberate brief" in result
 
 
 class TestBriefTool:

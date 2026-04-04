@@ -11,6 +11,15 @@ from deliberate.process import (
     create_brief, complete_item, get_brief_status,
     create_campaign, campaign_step, campaign_status,
 )
+from deliberate.templates import find_step_guide
+
+
+def cmd_guide(args):
+    """Print the weight class guide."""
+    if args.json:
+        print(json.dumps({"guide": get_guide()}))
+    else:
+        print(get_guide())
 
 
 def cmd_guide(args):
@@ -42,6 +51,11 @@ def cmd_brief(args):
         for item in brief.checklist:
             print(f"   - [{item.id}] {item.description}")
         print(f"   Done when: {brief.done_criteria}")
+        try:
+            guide_path = find_step_guide("brief")
+            print(f"   Working guide: {guide_path}")
+        except FileNotFoundError:
+            pass
 
 
 def cmd_check(args):
@@ -180,21 +194,50 @@ def main():
         if args.json:
             print(json.dumps(result, indent=2))
         else:
+            guide_path = find_step_guide("spec")
             print(f"🏗️ Campaign created: {output_dir / args.name}")
-            print(f"   Next: deliberate step spec --campaign {output_dir / args.name}")
+            print(f"   Next step: spec")
+            print(f"   Read the step guide: {guide_path}")
+            print(f"   Then run: deliberate step spec --campaign {output_dir / args.name} --content \"...\"")
+
     elif args.command == "step":
         campaign_dir = Path(args.campaign)
-        content = args.content or sys.stdin.read()
+        if args.content:
+            content = args.content
+        elif not sys.stdin.isatty():
+            content = sys.stdin.read()
+        else:
+            content = ""
+
+        # Empty content — show the step guide instead of writing empty artifact
+        if not content.strip():
+            try:
+                guide_path = find_step_guide(args.step_name)
+                template_path = Path(__file__).parent.parent / "templates" / f"{args.step_name}.md"
+                print(f"📖 Step: {args.step_name}")
+                print(f"   Guide (how to approach this step): {guide_path}")
+                if template_path.exists():
+                    print(f"   Template (output format): {template_path}")
+                print(f"\n   Read the guide, write your {args.step_name}, then run:")
+                print(f"   deliberate step {args.step_name} --campaign {campaign_dir} --content \"...\"")
+            except FileNotFoundError:
+                print(f"No step guide found for '{args.step_name}'.", file=sys.stderr)
+            sys.exit(0)
         try:
             result = campaign_step(campaign_dir, args.step_name, content)
             if args.json:
                 print(json.dumps(result, indent=2))
             else:
                 print(f"✅ {args.step_name}.md written to {campaign_dir}")
-                next_steps = {"spec": "plan", "plan": "tasks", "tasks": "implement"}
+                next_steps = {"spec": "plan", "plan": "tasks", "tasks": None}
                 nxt = next_steps.get(args.step_name)
                 if nxt:
-                    print(f"   Next: deliberate step {nxt} --campaign {campaign_dir}")
+                    guide_path = find_step_guide(nxt)
+                    print(f"   Next step: {nxt}")
+                    print(f"   Read the guide: {guide_path}")
+                    print(f"   Then run: deliberate step {nxt} --campaign {campaign_dir} --content \"...\"")
+                else:
+                    print(f"   All planning artifacts complete. Implement the tasks.")
         except ValueError as e:
             print(f"❌ Cannot execute '{args.step_name}': {e}", file=sys.stderr)
             sys.exit(1)

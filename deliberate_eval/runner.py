@@ -170,10 +170,32 @@ def run_single(
             run.trajectory = Trajectory(error=setup_error)
             return run
 
+        # 3b. Commit setup changes so they don't appear in the agent's diff
+        subprocess.run(
+            ["git", "add", "-A"],
+            capture_output=True, text=True, cwd=workdir, timeout=10,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "eval setup: apply test patches",
+             "--allow-empty", "-q"],
+            capture_output=True, text=True, cwd=workdir, timeout=10,
+            env={**os.environ,
+                 "GIT_AUTHOR_NAME": "eval", "GIT_AUTHOR_EMAIL": "eval@eval",
+                 "GIT_COMMITTER_NAME": "eval", "GIT_COMMITTER_EMAIL": "eval@eval"},
+        )
+
         # 4. Render prompt and invoke agent
         prompt = render_prompt(treatment, task)
         agent_runner = AGENT_RUNNERS[agent]
-        trajectory = agent_runner(prompt, workdir, timeout=agent_timeout)
+
+        # Pass venv PATH to the agent so it uses the right Python/pip
+        agent_env = None
+        if use_venv:
+            venv_bin = str(tmpdir / "venv" / "bin")
+            agent_env = {**os.environ, "PATH": f"{venv_bin}:{os.environ.get('PATH', '')}",
+                         "VIRTUAL_ENV": str(tmpdir / "venv")}
+
+        trajectory = agent_runner(prompt, workdir, timeout=agent_timeout, env=agent_env)
 
         # 5. Capture diff stats
         files, added, removed = _capture_diff(workdir)

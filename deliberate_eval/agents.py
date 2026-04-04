@@ -14,6 +14,7 @@ def run_claude(
     workdir: Path,
     timeout: int = 300,
     max_turns: int = 50,
+    env: Optional[dict] = None,
 ) -> Trajectory:
     """Run Claude Code in headless mode and capture trajectory.
 
@@ -24,6 +25,7 @@ def run_claude(
         "--output-format", "json",
         "--max-turns", str(max_turns),
         "--no-session-persistence",
+        "--dangerously-skip-permissions",
     ]
 
     start = time.monotonic()
@@ -35,6 +37,7 @@ def run_claude(
             text=True,
             timeout=timeout,
             cwd=workdir,
+            env=env,
         )
         duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -47,11 +50,13 @@ def run_claude(
         data = json.loads(result.stdout)
         usage = data.get("usage", {})
 
-        # Claude API: input_tokens is base (non-cached) only;
-        # cache_read_input_tokens and cache_creation_input_tokens are separate.
-        # Total input = input_tokens + cache_read + cache_creation
+        # Claude API token breakdown:
+        #   input_tokens: fresh (non-cached) input
+        #   cache_read_input_tokens: replayed context (cheap, ~10x less)
+        #   cache_creation_input_tokens: new context written to cache
+        # We store fresh input separately from cache reads so metrics
+        # reflect actual work, not context replay overhead.
         input_tok = (usage.get("input_tokens", 0)
-                     + usage.get("cache_read_input_tokens", 0)
                      + usage.get("cache_creation_input_tokens", 0))
 
         return Trajectory(
@@ -76,6 +81,7 @@ def run_codex(
     prompt: str,
     workdir: Path,
     timeout: int = 300,
+    env: Optional[dict] = None,
 ) -> Trajectory:
     """Run Codex CLI in headless mode and capture trajectory."""
     cmd = [
@@ -92,6 +98,7 @@ def run_codex(
             text=True,
             timeout=timeout,
             cwd=workdir,
+            env=env,
         )
         duration_ms = int((time.monotonic() - start) * 1000)
 

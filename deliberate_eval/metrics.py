@@ -14,6 +14,7 @@ class TreatmentStats:
     errors: int = 0
     median_tokens: int = 0
     median_cost_usd: float = 0.0
+    median_turns: int = 0
     median_duration_ms: int = 0
     total_tokens: int = 0
     total_cost_usd: float = 0.0
@@ -55,6 +56,7 @@ def compute_treatment_stats(runs: list[Run], treatment: str) -> TreatmentStats:
 
     tokens = [r.trajectory.total_tokens for r in filtered]
     costs = [r.trajectory.total_cost_usd for r in filtered]
+    turns = [r.trajectory.num_turns for r in filtered]
     durations = [r.trajectory.duration_ms for r in filtered]
 
     return TreatmentStats(
@@ -65,6 +67,7 @@ def compute_treatment_stats(runs: list[Run], treatment: str) -> TreatmentStats:
         errors=sum(1 for r in filtered if r.trajectory.error),
         median_tokens=int(_median(tokens)),
         median_cost_usd=round(_median(costs), 4),
+        median_turns=int(_median(turns)),
         median_duration_ms=int(_median(durations)),
         total_tokens=sum(tokens),
         total_cost_usd=round(sum(costs), 4),

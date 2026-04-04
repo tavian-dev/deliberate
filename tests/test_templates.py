@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from deliberate.templates import load_template, render_template, find_templates_dir
+from deliberate.templates import load_template, render_template, find_templates_dir, find_step_guide
 
 
 class TestFindTemplatesDir:
@@ -47,3 +47,31 @@ class TestRenderTemplate:
             result = render_template("test", {"title": "Present"}, tdir)
             assert "Present" in result
             assert "${missing}" in result  # safe_substitute leaves missing vars
+
+
+class TestFindStepGuide:
+    def test_finds_spec_guide(self):
+        path = find_step_guide("spec")
+        assert path.exists()
+        assert "spec" in path.name
+
+    def test_finds_all_step_guides(self):
+        for step in ["brief", "spec", "plan", "tasks", "research"]:
+            path = find_step_guide(step)
+            assert path.exists(), f"Missing step guide: {step}"
+
+    def test_guide_contains_next_step(self):
+        content = find_step_guide("spec").read_text()
+        assert "plan" in content.lower()  # spec guide should mention next step
+
+    def test_missing_guide_raises(self):
+        with pytest.raises(FileNotFoundError):
+            find_step_guide("nonexistent_step_xyz")
+
+    def test_prefers_project_local(self):
+        with tempfile.TemporaryDirectory() as d:
+            local = Path(d) / "steps"
+            local.mkdir(parents=True)
+            (local / "spec.md").write_text("# Custom spec guide")
+            path = find_step_guide("spec", Path(d))
+            assert "Custom" in path.read_text()

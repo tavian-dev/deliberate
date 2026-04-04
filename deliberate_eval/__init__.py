@@ -86,7 +86,8 @@ class Run:
 
     @classmethod
     def from_dict(cls, d: dict) -> "Run":
+        d = dict(d)  # don't mutate caller's dict
         traj_data = d.pop("trajectory", {})
-        traj_data.pop("total_tokens", None)  # computed property
-        traj = Trajectory(**{k: v for k, v in traj_data.items() if k in Trajectory.__dataclass_fields__})
+        traj_data = {k: v for k, v in traj_data.items() if k in Trajectory.__dataclass_fields__}
+        traj = Trajectory(**traj_data)
         return cls(trajectory=traj, **{k: v for k, v in d.items() if k in cls.__dataclass_fields__})

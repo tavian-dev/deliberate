@@ -47,8 +47,15 @@ def run_claude(
         data = json.loads(result.stdout)
         usage = data.get("usage", {})
 
+        # Claude API: input_tokens is base (non-cached) only;
+        # cache_read_input_tokens and cache_creation_input_tokens are separate.
+        # Total input = input_tokens + cache_read + cache_creation
+        input_tok = (usage.get("input_tokens", 0)
+                     + usage.get("cache_read_input_tokens", 0)
+                     + usage.get("cache_creation_input_tokens", 0))
+
         return Trajectory(
-            input_tokens=usage.get("input_tokens", 0) + usage.get("cache_read_input_tokens", 0),
+            input_tokens=input_tok,
             output_tokens=usage.get("output_tokens", 0),
             cache_read_tokens=usage.get("cache_read_input_tokens", 0),
             total_cost_usd=data.get("total_cost_usd", 0.0),
@@ -88,18 +95,19 @@ def run_codex(
         )
         duration_ms = int((time.monotonic() - start) * 1000)
 
-        # Codex reports token count in output footer
+        # Codex reports "tokens used\nNNNN" in its output footer
         output = result.stdout
         token_count = 0
-        for line in output.split("\n"):
-            if line.startswith("tokens used"):
-                # Next line or same line might have the count
-                pass
-            if line.strip().isdigit():
-                token_count = int(line.strip())
+        lines = output.strip().split("\n")
+        for i, line in enumerate(lines):
+            if line.strip() == "tokens used" and i + 1 < len(lines):
+                next_line = lines[i + 1].strip().replace(",", "")
+                if next_line.isdigit():
+                    token_count = int(next_line)
+                break
 
         return Trajectory(
-            output_tokens=token_count,  # Codex only reports total
+            input_tokens=token_count,  # Codex reports total, not split
             duration_ms=duration_ms,
             error="" if result.returncode == 0 else result.stderr[:1000],
         )

@@ -71,39 +71,61 @@ def compute_treatment_stats(runs: list[Run], treatment: str) -> TreatmentStats:
     )
 
 
+def _per_task_pass_rate(runs: list[Run], treatment: str) -> dict[str, float]:
+    """Compute pass rate per task for a treatment."""
+    by_task: dict[str, list[bool]] = {}
+    for r in runs:
+        if r.treatment == treatment and r.status == "completed":
+            by_task.setdefault(r.task_id, []).append(r.trajectory.passed)
+    return {tid: sum(v) / len(v) for tid, v in by_task.items()}
+
+
 def compare_treatments(
     runs: list[Run],
     baseline_treatment: str = "class_a",
     planned_treatment: str = "class_b",
 ) -> Comparison:
-    """Compare planned vs baseline treatments.
+    """Compare planned vs baseline treatments using per-task paired deltas.
 
-    Returns Planning ROI, Waste Reduction Ratio, and other deltas.
+    Computes per-task pass rate for each treatment, then averages the
+    per-task deltas. This prevents task difficulty from dominating the signal.
     """
     baseline = compute_treatment_stats(runs, baseline_treatment)
     planned = compute_treatment_stats(runs, planned_treatment)
 
-    pass_rate_lift = planned.pass_rate - baseline.pass_rate
+    # Per-task paired comparison (the correct way to aggregate)
+    baseline_rates = _per_task_pass_rate(runs, baseline_treatment)
+    planned_rates = _per_task_pass_rate(runs, planned_treatment)
+    shared_tasks = set(baseline_rates) & set(planned_rates)
+
+    if shared_tasks:
+        per_task_lifts = [planned_rates[t] - baseline_rates[t] for t in shared_tasks]
+        pass_rate_lift = sum(per_task_lifts) / len(per_task_lifts)
+    else:
+        pass_rate_lift = planned.pass_rate - baseline.pass_rate
+
+    # Token overhead: median across all runs (not per-task, since we want
+    # the overall cost picture)
     token_overhead = planned.median_tokens - baseline.median_tokens
 
-    # Planning ROI: pass rate lift per extra token (scaled to per-1K tokens)
+    # Planning ROI: mean per-task pass rate lift per 1K extra tokens
     if token_overhead > 0:
         planning_roi = (pass_rate_lift * 1000) / token_overhead
-    elif token_overhead < 0:
-        # Planning used fewer tokens AND improved pass rate — infinite ROI, cap it
-        planning_roi = 999.0 if pass_rate_lift > 0 else 0.0
+    elif token_overhead < 0 and pass_rate_lift > 0:
+        # Planning used fewer tokens AND improved — report as positive
+        # but don't use an arbitrary cap. Use absolute lift / saved tokens.
+        planning_roi = (pass_rate_lift * 1000) / abs(token_overhead)
     else:
         planning_roi = 0.0
 
-    # Waste Reduction: tokens spent on failed runs
-    baseline_waste = sum(
-        r.trajectory.total_tokens for r in runs
-        if r.treatment == baseline_treatment and r.status == "completed" and not r.trajectory.passed
-    )
-    planned_waste = sum(
-        r.trajectory.total_tokens for r in runs
-        if r.treatment == planned_treatment and r.status == "completed" and not r.trajectory.passed
-    )
+    # Waste: tokens on failed runs, normalized by number of failed runs
+    baseline_failed = [r for r in runs if r.treatment == baseline_treatment
+                       and r.status == "completed" and not r.trajectory.passed]
+    planned_failed = [r for r in runs if r.treatment == planned_treatment
+                      and r.status == "completed" and not r.trajectory.passed]
+
+    baseline_waste = sum(r.trajectory.total_tokens for r in baseline_failed)
+    planned_waste = sum(r.trajectory.total_tokens for r in planned_failed)
 
     if baseline_waste > 0:
         waste_reduction = (baseline_waste - planned_waste) / baseline_waste

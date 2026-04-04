@@ -1,14 +1,10 @@
-Fix the following issue. Before writing any code, create a brief plan:
+Fix the following issue in this repository.
 
-1. Run: `deliberate brief "${description}"` to create a checklist
-2. Read the generated brief.md
-3. Follow the checklist items in order
-4. Mark each item done as you complete it: `deliberate check B001`, etc.
-5. After all items are done, run the test command to verify
+Before writing any code, create a brief plan:
+1. Write a short checklist (3-8 items) of what needs to change
+2. For each item, note the specific file(s) involved
+3. Work through the checklist in order
+4. After completing all items, verify by running: ${test_command}
 
 Issue: ${description}
-
-Repository: ${repo}
-Test command: ${test_command}
 ${setup_instructions}
-After making your changes, run the test command to verify your fix works.

@@ -7,9 +7,9 @@ from deliberate_eval.metrics import (
 )
 
 
-def _make_run(treatment, passed, tokens=1000, cost=0.05, status="completed"):
+def _make_run(treatment, passed, tokens=1000, cost=0.05, status="completed", task_id="t1"):
     return Run(
-        task_id="t1", treatment=treatment, agent="claude", status=status,
+        task_id=task_id, treatment=treatment, agent="claude", status=status,
         trajectory=Trajectory(
             input_tokens=tokens - 200, output_tokens=200,
             total_cost_usd=cost, passed=passed, duration_ms=5000,
@@ -118,7 +118,7 @@ class TestCompare:
         comp = compare_treatments(runs)
         assert comp.waste_reduction_ratio == 0.0  # No waste to reduce
 
-    def test_planning_saves_tokens(self):
+    def test_planning_saves_tokens_and_improves(self):
         runs = [
             # Baseline: uses MORE tokens due to fumbling
             _make_run("class_a", False, tokens=5000),
@@ -128,5 +128,19 @@ class TestCompare:
             _make_run("class_b", True, tokens=2500),
         ]
         comp = compare_treatments(runs)
-        assert comp.planning_roi == 999.0  # Capped: saved tokens AND improved
+        assert comp.planning_roi > 0  # Positive: saved tokens AND improved
         assert comp.pass_rate_lift == 1.0  # 0% → 100%
+
+    def test_per_task_aggregation(self):
+        """Verify per-task deltas are used, not global aggregation."""
+        runs = [
+            # Task 1: planning helps (0% → 100%)
+            _make_run("class_a", False, tokens=1000, task_id="easy"),
+            _make_run("class_b", True, tokens=1500, task_id="easy"),
+            # Task 2: planning doesn't help (0% → 0%)
+            _make_run("class_a", False, tokens=1000, task_id="hard"),
+            _make_run("class_b", False, tokens=1500, task_id="hard"),
+        ]
+        comp = compare_treatments(runs)
+        # Per-task: easy lift=1.0, hard lift=0.0, mean=0.5
+        assert comp.pass_rate_lift == pytest.approx(0.5, abs=0.01)

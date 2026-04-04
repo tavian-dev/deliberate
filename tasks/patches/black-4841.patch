@@ -1,0 +1,90 @@
+diff --git a/tests/data/cases/fmtskip11.py b/tests/data/cases/fmtskip11.py
+index 5d3f7874e55..2b0e1e8581c 100644
+--- a/tests/data/cases/fmtskip11.py
++++ b/tests/data/cases/fmtskip11.py
+@@ -4,3 +4,85 @@ def foo():
+ 
+ # comment 1  # fmt: skip
+ # comment 2
++
++[
++    (1, 2),
++    # # fmt: off
++    # (3,
++    #    4),
++    # # fmt: on
++    (5, 6),
++]
++
++[
++    (1, 2),
++    # # fmt: off
++    # (3,
++    #    4),
++    # fmt: on
++    (5, 6),
++]
++
++
++[
++    (1, 2),
++    # fmt: off
++    # (3,
++    #    4),
++    # # fmt: on
++    (5, 6),
++]
++
++
++[
++    (1, 2),
++    # fmt: off
++    # (3,
++    #    4),
++    # fmt: on
++    (5, 6),
++]
++
++[
++    (1, 2),
++    # # fmt: off
++    (3,
++       4),
++    # # fmt: on
++    (5, 6),
++]
++
++[
++    (1, 2),
++    # # fmt: off
++    (3,
++       4),
++    # fmt: on
++    (5, 6),
++]
++
++
++[
++    (1, 2),
++    # fmt: off
++    (3,
++       4),
++    # # fmt: on
++    (5, 6),
++]
++
++
++[
++    (1, 2),
++    # fmt: off
++    (3,
++       4),
++    # fmt: on
++    (5, 6),
++]
++
++
++if False:
++    # fmt: off # some other comment
++    pass
++
